@@ -1,0 +1,60 @@
+
+data  "azurerm_resource_group" "hdrg" {
+  name     = "hdrg"
+  # location = "eastasia"
+}
+
+# data  "azurerm_virtual_network" "hdvnet" {
+#   name   = "hdvnet"
+#   # region     = data.azurerm_resource_group.hdrg.location
+#   resource_group_name     = data.azurerm_resource_group.hdrg.name
+#   # subnetName = "hdsubnet"
+# }
+
+
+module "hd-master" {
+  source       = "../modules/vmVnet"
+  vmNamePrefix = "hdmaster"
+  vmcount      = 2
+  vnetName     = "hdvnet"
+  vnetRG       = data.azurerm_resource_group.hdrg.name
+  nsgName = "hdmnsg"
+  subnetName   = "hdsubnet"
+  rgLocation   = data.azurerm_resource_group.hdrg.location
+  rgName       = data.azurerm_resource_group.hdrg.name
+  public_ip    = false
+  spot         = true
+  # image_offer = "0001-com-ubuntu-server-focal"
+  # image_publisher = "Canonical"
+  # image_sku = "20_04-lts"
+  kvName       = "kvexample888"
+  kvRG         = "exampleRG"
+  # kvLocation = "eastasia"
+  kvKeyName = "pubkey-test"
+  vmSize    = "Standard_D4S_v3"
+
+}
+
+variable "hfile" {
+  default = "hosts-hdmaster"
+}
+
+resource "null_resource" "local-setup" {
+
+  provisioner "local-exec" {
+    command = <<EOT
+    cd ~
+    echo "[testgroup]" > ${var.hfile}
+    echo "${module.hd-master.public_ip_address}" >> ${var.hfile}
+    echo "[testgroup:vars]" >> ${var.hfile}
+    echo "ansible_user=azureuser" >> ${var.hfile}
+    echo "ansible_ssh_private_key_file=~/cert1.pem" >> ${var.hfile}
+    echo "ansible_ssh_extra_args='-o StrictHostKeyChecking=no'" >> ${var.hfile}
+    echo "ansible_become=true" >> ${var.hfile}
+    echo "ansible_become_method=sudo" >> ${var.hfile}
+    echo "ansible_become_user=root" >> ${var.hfile}
+    cd -
+    ansible-playbook -i /home/rade/${var.hfile} playbook.yml
+    EOT
+  }
+}

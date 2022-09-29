@@ -1,0 +1,9 @@
+ansible/*
+.terraform/
+*.pem
+*.pub
+~
+*.hcl
+*.tfstate
+*.backup
+*.tfplan
