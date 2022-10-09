@@ -1,5 +1,5 @@
 output "vmName" {
-  value = ["${azurerm_linux_virtual_machine.VMs[*].name}"]
+  value = [ for vm in azurerm_linux_virtual_machine.VMs: vm.name]
 }
 
 output "public_ip_address" {

@@ -140,7 +140,7 @@ module "testvm" {
 }
 ```
 
-## 创建并配置Hadoop集群
+## 创建Hadoop集群
 有了上面的基础，我们就可以按需要来创建Hadoop集群，但有两点需要注意：
 - 安全起见，Hadoop集群不建议配置公网IP, 这就需要使用跳板机(Jumpbox)，然后hadoop集群节点都只有内网IP ( public_ip = false ), 
 - 为了配置方便，需要各节点间ssh互信。这就需要创建完VM后，从Keyvault 下载密钥到本机的 .ssh/id_rsa 。但这些配置需要ssh连接上各节点，所以terraform只能在跳板机执行。
@@ -186,9 +186,9 @@ ssh -i /home/$USER/cert1.pem azureuser@<ansibleHost的公网IP> -p 6666
 az login
 
 cd ~
-pip3 install azure-keyvault==1.1.0
-az keyvault secret download --file cert1.pem --name prikey-test --vault-name kvexample888
-chmod 400 cert1.pem
+# pip3 install azure-keyvault==1.1.0
+# az keyvault secret download --file cert1.pem --name prikey-test --vault-name kvexample888
+# chmod 400 cert1.pem
 git clone https://github.com/radezheng/azureHadoop
 
 cd azureHadoop/hdvm
@@ -221,4 +221,44 @@ resource "null_resource" "local-setup" {
     ansible-playbook -i /home/$USER/${var.hfile} playbook.yml
     EOT
   }
+```
+所以后续Hadoop的安装，主要是靠Ansible的 [playbook.yml](./hdvm/playbook.yml) 来完成的。
+<br/>
+当然也可以手动一台台安装配置。
+
+## Hadoop集群配置
+上一步骤已把Hadoop集群的节点创建好了，但还需要配置Hadoop集群，比如存算分离，使用ADLS Gen2作为HDFS的存储，配置YARN的资源管理器等等。
+<br/>
+简单的步骤可以参考上一步提到的Ansible的 [playbook.yml](./hdvm/playbook.yml) .  这里提一下，如果要使用ADLS Gen2作为HDFS的存储，需要在Hadoop集群的节点上安装ADLS Gen2的Hadoop connector, 详细步骤可以参考 [AHadoop Azure Support: ABFS — Azure Data Lake Storage Gen2](https://hadoop.apache.org/docs/stable/hadoop-azure/abfs.html) . Hadoop的安装包自带了这个connector，需要确认jar包都可访问，比如把jar包放到Hadoop的lib目录下，然后在Hadoop的配置文件core-site.xml中配置如下：
+```bash
+cd /home/myadmin/hadoop/share/hadoop
+cp tools/lib/*azure* common/
+```
+
+```XML
+<configuration>
+<property>
+  <name>fs.azure.account.auth.type.[YOUR_STORAGE_ACCOUNT].dfs.core.windows.net</name>
+  <value>SharedKey</value>
+  <description>
+  </description>
+</property>
+<property>
+  <name>fs.azure.account.key.[YOUR_STORAGE_ACCOUNT].dfs.core.windows.net</name>
+  <value>[YOUR_STORAGE_ACCOUNT_KEY]</value>
+</property>
+<property>
+<name>fs.defaultFS</name>
+<value>abfs://testcontainer@[YOUR_STORAGE_ACCOUNT].dfs.core.windows.net/</value>
+</property>
+
+</configuration>
+```
+存储帐号需预先创建好，ABFS协议需打开ADLS Gen2，即层次目录结构功能。可以在portal操作。<br/>
+并创建好一个容器，比如testcontainer，然后把上面的[YOUR_STORAGE_ACCOUNT]和[YOUR_STORAGE_ACCOUNT_KEY]替换成自己的存储帐号和key。然后就可以使用Hadoop的命令行工具hdfs来操作ADLS Gen2了，比如：
+```bash
+hadoop fs -ls /
+
+hadoop fs -mkdir abfs://testcontainer@[YOUR_STORAGE_ACCOUNT].dfs.core.windows.net/testDir
+
 ```

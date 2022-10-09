@@ -49,9 +49,12 @@ resource "null_resource" "local-setup" {
     command = <<EOT
     cd ~
     chmod 400 cert1.pem
+    chmod 400 /home/$USER/.ssh/id_rsa
     echo "[testgroup]" > ${var.hfile}
-    echo "${module.hd-master.vmName}" >> ${var.hfile}
-    for((i=0;i<2;i++));do echo ${module.hd-master.vmNamePrefix}-$i >> ${var.hfile};done
+    echo "[testgroup]" > ${var.hfile}
+    %{ for n in module.hd-master.vmName ~}
+    echo "${n}" >> ${var.hfile}
+    %{ endfor ~}
     echo "[testgroup:vars]" >> ${var.hfile}
     echo "ansible_user=azureuser" >> ${var.hfile}
     echo "ansible_ssh_private_key_file=/home/$USER/cert1.pem" >> ${var.hfile}
