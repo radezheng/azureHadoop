@@ -198,18 +198,26 @@ terraform apply hdvm.plan
 ```
 这里Terraform在创建完资源后，会调用Ansible执行安装配置Hadoop集群:
 ```ARM
+
 variable "hfile" {
   default = "hosts-hdmaster"
 }
 
 resource "null_resource" "local-setup" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
 
   provisioner "local-exec" {
     command = <<EOT
     cd ~
     chmod 400 cert1.pem
+    chmod 400 /home/$USER/.ssh/id_rsa
     echo "[testgroup]" > ${var.hfile}
-    echo "${module.hd-master.public_ip_address}" >> ${var.hfile}
+    echo "[testgroup]" > ${var.hfile}
+    %{ for n in module.hd-master.vmName ~}
+    echo "${n}" >> ${var.hfile}
+    %{ endfor ~}
     echo "[testgroup:vars]" >> ${var.hfile}
     echo "ansible_user=azureuser" >> ${var.hfile}
     echo "ansible_ssh_private_key_file=/home/$USER/cert1.pem" >> ${var.hfile}
@@ -221,6 +229,8 @@ resource "null_resource" "local-setup" {
     ansible-playbook -i /home/$USER/${var.hfile} playbook.yml
     EOT
   }
+}
+
 ```
 所以后续Hadoop的安装，主要是靠Ansible的 [playbook.yml](./hdvm/playbook.yml) 来完成的。
 <br/>
