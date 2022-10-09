@@ -146,16 +146,17 @@ module "testvm" {
 - 为了配置方便，需要各节点间ssh互信。这就需要创建完VM后，从Keyvault 下载密钥到本机的 .ssh/id_rsa 。但这些配置需要ssh连接上各节点，所以terraform只能在跳板机执行。
 ```ARM
   provisioner "file" {
-    content      = data.azurerm_key_vault_secret.sshkey.value
+    content      = data.azurerm_key_vault_secret.sshprikey.value
     destination = "/home/${var.userName}/.ssh/id_rsa"
     
         connection {
       type        = "ssh"
       user        = var.userName
-      private_key = file("~/cert1.pem")
-      host        = "${var.public_ip?self.public_ip_address:"localhost"}"
+      private_key = data.azurerm_key_vault_secret.sshprikey.value
+      host        = "${var.public_ip?self.public_ip_address:self.name}"
     }
   }
+
 ```
 - 创建完节点，hadoop的安装配置建议使用Ansible, 也需要在跳板机执行。
 <br/>
