@@ -41,12 +41,17 @@ variable "hfile" {
 }
 
 resource "null_resource" "local-setup" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
 
   provisioner "local-exec" {
     command = <<EOT
     cd ~
+    chmod 400 cert1.pem
     echo "[testgroup]" > ${var.hfile}
-    echo "${module.hd-master.public_ip_address}" >> ${var.hfile}
+    echo "${module.hd-master.vmName}" >> ${var.hfile}
+    for((i=0;i<2;i++));do echo ${module.hd-master.vmNamePrefix}-$i >> ${var.hfile};done
     echo "[testgroup:vars]" >> ${var.hfile}
     echo "ansible_user=azureuser" >> ${var.hfile}
     echo "ansible_ssh_private_key_file=/home/$USER/cert1.pem" >> ${var.hfile}

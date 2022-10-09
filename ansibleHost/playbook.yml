@@ -11,6 +11,10 @@
         update_cache: yes
         name: azure-cli
         state: present
+    - name: Install Pythonpip3
+      apt: 
+        name: python3-pip
+        state: present
     - name: Install Terraoform p1
       apt: 
         update_cache: yes

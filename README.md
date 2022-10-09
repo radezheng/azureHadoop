@@ -168,8 +168,8 @@ module "testvm" {
 ```bash
 cd ansibleHost
 terraform init
-terraform plan -out test.plan
-terraform apply test.plan
+terraform plan -out ansiblehost.plan
+terraform apply ansiblehost.plan
 ```
 
 然后再在ansibleHost上创建hadoop集群的VM
@@ -186,6 +186,7 @@ ssh -i /home/$USER/cert1.pem azureuser@<ansibleHost的公网IP> -p 6666
 az login
 
 cd ~
+pip3 install azure-keyvault==1.1.0
 az keyvault secret download --file cert1.pem --name prikey-test --vault-name kvexample888
 chmod 400 cert1.pem
 git clone https://github.com/radezheng/azureHadoop
@@ -206,11 +207,12 @@ resource "null_resource" "local-setup" {
   provisioner "local-exec" {
     command = <<EOT
     cd ~
+    chmod 400 cert1.pem
     echo "[testgroup]" > ${var.hfile}
     echo "${module.hd-master.public_ip_address}" >> ${var.hfile}
     echo "[testgroup:vars]" >> ${var.hfile}
     echo "ansible_user=azureuser" >> ${var.hfile}
-    echo "ansible_ssh_private_key_file=~/cert1.pem" >> ${var.hfile}
+    echo "ansible_ssh_private_key_file=/home/$USER/cert1.pem" >> ${var.hfile}
     echo "ansible_ssh_extra_args='-o StrictHostKeyChecking=no'" >> ${var.hfile}
     echo "ansible_become=true" >> ${var.hfile}
     echo "ansible_become_method=sudo" >> ${var.hfile}

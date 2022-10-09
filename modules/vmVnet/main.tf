@@ -161,17 +161,18 @@ resource "azurerm_linux_virtual_machine" "VMs" {
       type        = "ssh"
       user        = var.userName
       private_key = data.azurerm_key_vault_secret.sshprikey.value
-      host        = "${var.public_ip?self.public_ip_address:"localhost"}"
+      host        = "${var.public_ip?self.public_ip_address:self.name}"
     }
   }
 
+  #修改Ubuntu的SSH 端口
   provisioner "remote-exec" {
     # count = var.public_ip ? var.vmcount : 0
         connection {
       type        = "ssh"
       user        = var.userName
       private_key = data.azurerm_key_vault_secret.sshprikey.value
-      host        = "${var.public_ip?self.public_ip_address:"localhost"}"
+      host        = "${var.public_ip?self.public_ip_address:self.name}"
     }
 
     inline = [

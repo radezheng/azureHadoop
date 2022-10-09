@@ -45,23 +45,26 @@ module "ansibleHost" {
 }
 
 resource "null_resource" "local-setup" {
-
+  triggers = {
+    always_run = "${timestamp()}"
+  }
 
   provisioner "local-exec" {
     command = <<EOT
     cd ~
+    chmod 400 cert1.pem
     echo "[testgroup]" > hosts
     echo "${module.ansibleHost.public_ip_address}" >> hosts
     echo "[testgroup:vars]" >> hosts
     echo "ansible_user=azureuser" >> hosts
-    echo "ansible_ssh_private_key_file=~/cert1.pem" >> hosts
+    echo "ansible_ssh_private_key_file=/home/$USER/cert1.pem" >> hosts
     echo "ansible_ssh_port=6666" >> hosts
     echo "ansible_ssh_extra_args='-o StrictHostKeyChecking=no'" >> hosts
     echo "ansible_become=true" >> hosts
     echo "ansible_become_method=sudo" >> hosts
     echo "ansible_become_user=root" >> hosts
     cd -
-    ansible-playbook -i /home/rade/hosts playbook.yml
+    # ansible-playbook -i /home/$USER/hosts playbook.yml
     EOT
   }
 }
