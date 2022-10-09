@@ -60,8 +60,14 @@ variable "kvRG" {
   description = "value of the keyvault resource group"
 }
 
-variable "kvKeyName" {
+variable "kvPubKeyName" {
   default     = "pubkey-test"
+  description = "value of the keyvault key name"
+  
+}
+
+variable "kvPriKeyName" {
+  default     = "prikey-test"
   description = "value of the keyvault key name"
   
 }

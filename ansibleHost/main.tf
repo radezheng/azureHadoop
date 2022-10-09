@@ -17,7 +17,7 @@ module "hd-vnet" {
 }
 
 
-module "hd-master" {
+module "ansibleHost" {
   source       = "../modules/vmVnet"
   vmNamePrefix = "ansibleHost"
   vmcount      = 1
@@ -34,7 +34,8 @@ module "hd-master" {
   kvName       = "kvexample888"
   kvRG         = "exampleRG"
   # kvLocation = "eastasia"
-  kvKeyName = "pubkey-test"
+  kvPubKeyName = "pubkey-test"
+  kvPriKeyName = "prikey-test"
   vmSize    = "Standard_D4S_v3"
 
   depends_on = [
@@ -50,7 +51,7 @@ resource "null_resource" "local-setup" {
     command = <<EOT
     cd ~
     echo "[testgroup]" > hosts
-    echo "${module.hd-master.public_ip_address}" >> hosts
+    echo "${module.ansibleHost.public_ip_address}" >> hosts
     echo "[testgroup:vars]" >> hosts
     echo "ansible_user=azureuser" >> hosts
     echo "ansible_ssh_private_key_file=~/cert1.pem" >> hosts

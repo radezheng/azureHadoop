@@ -30,7 +30,8 @@ module "hd-master" {
   kvName       = "kvexample888"
   kvRG         = "exampleRG"
   # kvLocation = "eastasia"
-  kvKeyName = "pubkey-test"
+  kvPubKeyName = "pubkey-test"
+  kvPriKeyName = "prikey-test"
   vmSize    = "Standard_D4S_v3"
 
 }
@@ -48,13 +49,13 @@ resource "null_resource" "local-setup" {
     echo "${module.hd-master.public_ip_address}" >> ${var.hfile}
     echo "[testgroup:vars]" >> ${var.hfile}
     echo "ansible_user=azureuser" >> ${var.hfile}
-    echo "ansible_ssh_private_key_file=~/cert1.pem" >> ${var.hfile}
+    echo "ansible_ssh_private_key_file=/home/$USER/cert1.pem" >> ${var.hfile}
     echo "ansible_ssh_extra_args='-o StrictHostKeyChecking=no'" >> ${var.hfile}
     echo "ansible_become=true" >> ${var.hfile}
     echo "ansible_become_method=sudo" >> ${var.hfile}
     echo "ansible_become_user=root" >> ${var.hfile}
     cd -
-    ansible-playbook -i /home/rade/${var.hfile} playbook.yml
+    ansible-playbook -i /home/$USER/${var.hfile} playbook.yml
     EOT
   }
 }

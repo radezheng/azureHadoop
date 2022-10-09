@@ -7,3 +7,6 @@ ansible/*
 *.tfstate
 *.backup
 *.tfplan
+*.plan
+*.info
+*.tfvars

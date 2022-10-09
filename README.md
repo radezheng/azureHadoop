@@ -11,6 +11,12 @@ Ansible 参考 https://cn-ansibledoc.readthedocs.io/zh_CN/latest/installation_gu
 
 <br/>
 另外需要配置 Azure和Terraform的验证权限， 参考 https://learn.microsoft.com/zh-cn/azure/developer/terraform/authenticate-to-azure?tabs=bash  <br/>
+
+或者在执行Terraform的机器上登录Azure CLI也可以。
+```bash
+az login
+az account show
+```
 <br/>
 
 ## Terraform 基本用法
@@ -30,7 +36,7 @@ terraform apply  test.tfplan
 ```
 
 ## 创建一台虚机
-参考 [/vm](./vm/) <br/>
+参考 [/vm](./vm/main.tf) <br/>
 创建VNet,subnet, nsg, 并引用Keyvault生成密钥作为虚机登录的证书，主要在:
 ```ARM
 data "azurerm_key_vault" "kvexample" {
@@ -46,7 +52,7 @@ data "azurerm_key_vault_secret" "sshkey" {
 
 只需要在该目录下，执行Terraform基本用法的三个命令就可以，即 terraform init/plan/apply
 
-Keyvault的创建参考 [/keyvault](./keyvault/), 主要注意网络访问限制。如果是测试阶段，也可以将默认设为Allow, 或在Portal里的Keyvault的网络里打开限制。
+Keyvault的创建参考 [/keyvault](./keyvault/keyvault.tf), 主要注意网络访问限制。如果是测试阶段，也可以将默认设为Allow, 或在Portal里的Keyvault的网络里打开限制。
 ```json
     network_acls {
         default_action             = "Deny"
@@ -61,6 +67,16 @@ az keyvault secret download --vault-name kvexample888 -n prikey-test  -f cert1.
 
 chmod 400 cert1.pem
 ```
+
+**可能遇到的问题** <br/>
+
+__** ModuleNotFoundError: No module named 'azure.keyvault.v7_0' **__ <br/>
+解决办法： <br/>
+
+```bash
+pip3 install azure-keyvault==1.1.0
+```
+
 
 然后就可以 ssh -i cert1.pem azureuser@[ip]
 
@@ -146,4 +162,61 @@ module "testvm" {
 <br/>
 所以我们先要创建一个跳板机，作为Terraform/Ansible的执行，参考 [ansibleHost/main.tf](./ansibleHost/main.tf)
 <br/>
-然后再在ansibleHost这台机器上安装Terraform/Ansible/Azure CLI,参考“环境准备”环节， 再把脚本clone到ansibleHost上，然后执行创建hadoop集群，参考 [hdvm/main.tf](./hdvm/main.tf)
+然后再在ansibleHost这台机器上安装Terraform/Ansible/Azure CLI,参考“环境安装”环节， 再把脚本clone到ansibleHost上，然后执行创建hadoop集群，参考 [hdvm/main.tf](./hdvm/main.tf)
+
+先在本机创建带公网IP的vm ansibleHost
+```bash
+cd ansibleHost
+terraform init
+terraform plan -out test.plan
+terraform apply test.plan
+```
+
+然后再在ansibleHost上创建hadoop集群的VM
+
+```bash
+#在本机运行 ansible playbook,  在 ansibleHost上安装Terraform/Ansible/Azure CLI
+ansible-playbook -i /home/$USER/hosts playbook.yml
+
+#或者ssh 到 AnsibleHost 参考 [环境安装](https://github.com/radezheng/azureHadoop#%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85) 安装Terraform/Ansible/Azure CLI, 这里的脚本会把ansibleHost的SSH Port改为6666
+cd ~
+ssh -i /home/$USER/cert1.pem azureuser@<ansibleHost的公网IP> -p 6666
+
+#安装完，在ansibleHost上执行
+az login
+
+cd ~
+az keyvault secret download --file cert1.pem --name prikey-test --vault-name kvexample888
+chmod 400 cert1.pem
+git clone https://github.com/radezheng/azureHadoop
+
+cd azureHadoop/hdvm
+terraform init
+terraform plan -out hdvm.plan
+terraform apply hdvm.plan
+```
+这里Terraform在创建完资源后，会调用Ansible执行安装配置Hadoop集群:
+```ARM
+variable "hfile" {
+  default = "hosts-hdmaster"
+}
+
+resource "null_resource" "local-setup" {
+
+  provisioner "local-exec" {
+    command = <<EOT
+    cd ~
+    echo "[testgroup]" > ${var.hfile}
+    echo "${module.hd-master.public_ip_address}" >> ${var.hfile}
+    echo "[testgroup:vars]" >> ${var.hfile}
+    echo "ansible_user=azureuser" >> ${var.hfile}
+    echo "ansible_ssh_private_key_file=~/cert1.pem" >> ${var.hfile}
+    echo "ansible_ssh_extra_args='-o StrictHostKeyChecking=no'" >> ${var.hfile}
+    echo "ansible_become=true" >> ${var.hfile}
+    echo "ansible_become_method=sudo" >> ${var.hfile}
+    echo "ansible_become_user=root" >> ${var.hfile}
+    cd -
+    ansible-playbook -i /home/$USER/${var.hfile} playbook.yml
+    EOT
+  }
+```

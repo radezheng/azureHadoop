@@ -103,13 +103,19 @@ data "azurerm_key_vault" "kvName" {
   resource_group_name = var.kvRG
 }
 
-data "azurerm_key_vault_secret" "sshkey" {
-  name         = var.kvKeyName
+data "azurerm_key_vault_secret" "sshpubkey" {
+  name         = var.kvPubKeyName
   key_vault_id = data.azurerm_key_vault.kvName.id
 }
-  resource "local_file" "sshkeyfile" {
-      content  = data.azurerm_key_vault_secret.sshkey.value
-      filename = "~/cert1.pem"
+
+data "azurerm_key_vault_secret" "sshprikey" {
+  name         = var.kvPriKeyName
+  key_vault_id = data.azurerm_key_vault.kvName.id
+}
+
+resource "local_file" "sshprikeyfile" {
+      content  = data.azurerm_key_vault_secret.sshprikey.value
+      filename = pathexpand("~/cert1.pem")
   }
 
 # Create virtual machine
@@ -143,18 +149,18 @@ resource "azurerm_linux_virtual_machine" "VMs" {
 
   admin_ssh_key {
     username   = var.userName
-    public_key = data.azurerm_key_vault_secret.sshkey.value
+    public_key = data.azurerm_key_vault_secret.sshpubkey.value
   }
 
 
   provisioner "file" {
-    content      = data.azurerm_key_vault_secret.sshkey.value
+    content      = data.azurerm_key_vault_secret.sshprikey.value
     destination = "/home/${var.userName}/.ssh/id_rsa"
     
         connection {
       type        = "ssh"
       user        = var.userName
-      private_key = file("~/cert1.pem")
+      private_key = data.azurerm_key_vault_secret.sshprikey.value
       host        = "${var.public_ip?self.public_ip_address:"localhost"}"
     }
   }
@@ -164,7 +170,7 @@ resource "azurerm_linux_virtual_machine" "VMs" {
         connection {
       type        = "ssh"
       user        = var.userName
-      private_key = file("~/cert1.pem")
+      private_key = data.azurerm_key_vault_secret.sshprikey.value
       host        = "${var.public_ip?self.public_ip_address:"localhost"}"
     }
 
