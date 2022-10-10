@@ -273,3 +273,13 @@ hadoop fs -ls /
 hadoop fs -mkdir abfs://testcontainer@[YOUR_STORAGE_ACCOUNT].dfs.core.windows.net/testDir
 
 ```
+
+## Hadoop集群弹性伸缩
+如果有弹性伸缩的需求，可以将集群建在Virtual Machine Sacale Set里，使用VMSS原生弹性伸缩的功能，支持根据如节点的CPU,内存，网络等的使用率来增加或减少节点，或者定时如每天早上九点伸缩。然后再结合Hadoop集群各组件的指标，动态调用API来实现节点的伸缩。要注意的是一个VMSS建议所有节点功能需要一样，不同的组件功能用不同的VMSS来安装，这样也方便不同的组件独立的伸缩。
+<br/>
+使用Terraform 建VMSS可以参考 [hdvmss](./hdvmss/main.tf), 当然这里只是简单的示例了vmss的创建，作为参考。具体组件的安装也可以使用Ansible来完成。参考：https://docs.microsoft.com/zh-cn/azure/developer/ansible/vm-scale-set-auto-scale
+<br/>
+VMSS自动弹性伸缩的配置参考：https://learn.microsoft.com/zh-cn/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-autoscale-portal
+<br/>
+使用API来动态伸缩VMSS可以参考：https://learn.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/update?tabs=HTTP
+
